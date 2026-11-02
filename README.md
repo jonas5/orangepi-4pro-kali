@@ -24,6 +24,11 @@ This repository provides the official Kali Linux Rolling ARM64 operating system 
 | **SDR (Software Radio)** | RTL-SDR, HackRF, Airspy USB Dongles | **Supported** | `rtl2832`, `rtl2832_sdr`, `dvb_usb_rtl28xxu` modules built-in |
 | **Automotive / CAN** | SocketCAN, Virtual CAN, Serial CAN | **Supported** | `can`, `can_raw`, `can_bcm`, `vcan`, `slcan` kernel modules |
 
+> **Hardware Acceleration & Wi-Fi 6 AP Pentest Driver Licenses:**  
+> The core Linux kernel and base Kali Linux Rolling SD card images are 100% open source. The proprietary AIC8800 Wi-Fi 6 Master (AP / Rogue AP) driver pack and PowerVR Rogue GPU Vulkan 1.2 acceleration stack are maintained out-of-tree. Driver licenses can be grabbed below:  
+>  
+> <a href="https://buymeacoffee.com/jonas5/e/594230" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46" style="height: 46px !important;"></a>
+
 ---
 
 ## 2. Default Credentials & System Access
@@ -62,17 +67,22 @@ sudo aireplay-ng --test wlan1
 
 ---
 
-## 4. Hardware Driver Acceleration (Private Driver Pack)
+## 4. Hardware Driver Acceleration & Wi-Fi 6 Master AP License
 
-While the core Linux kernel, Device Trees, and Kali Linux base OS are 100% open source, proprietary hardware acceleration drivers (PowerVR Rogue GPU Vulkan 1.2 stack and AIC8800 Wi-Fi 6 AP mode) are maintained out-of-tree.
+While the core Linux kernel, Device Trees, and Kali Linux base OS are 100% open source, proprietary hardware acceleration drivers (PowerVR Rogue GPU Vulkan 1.2 stack and AIC8800 Wi-Fi 6 AP / Rogue AP mode) are maintained out-of-tree.
 
-To activate proprietary GPU acceleration and Wi-Fi 6 Master (AP Mode) drivers on your Orange Pi 4 Pro:
+To activate the AIC8800 Wi-Fi 6 AP and Rogue Pentesting driver pack on your Orange Pi 4 Pro:
+
+<a href="https://buymeacoffee.com/jonas5/e/594230" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46" style="height: 46px !important;"></a>
 
 ```bash
-# 1. Run the client tool
-sudo orangepi-config --activate all --payment-id YOUR-LICENSE-KEY --non-interactive
+# 1. Run the client tool with your license key
+sudo orangepi-config --activate kali_wifi_ap --payment-id YOUR-LICENSE-KEY --non-interactive
 
-# 2. Or grab your license key at:
+# 2. Launch the Wi-Fi 6 AP / Rogue AP
+sudo /usr/local/bin/kali-wifi6-ap-setup.sh "Kali_WiFi6_AP" "KaliLinux2026" 5g 36
+
+# 3. Or self-service lookup your license anytime at:
 # https://raccoon.ing/activate
 ```
 
@@ -84,6 +94,7 @@ sudo orangepi-config --activate all --payment-id YOUR-LICENSE-KEY --non-interact
 ├── .github/
 │   └── workflows/
 │       ├── build-kali-image.yml  # Automated GitHub Actions workflow building Kali SD image (.img.xz)
+│       ├── build-kernel.yml      # Automated workflow compiling kernel DEBs & DTBs
 │       └── cleanup-runs.yml      # CI workflow maintenance helper
 ├── boot/
 │   ├── boot.cmd                  # U-Boot boot script source
