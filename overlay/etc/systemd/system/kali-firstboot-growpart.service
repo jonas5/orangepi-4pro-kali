@@ -1,0 +1,12 @@
+[Unit]
+Description=Kali Linux First-Boot Provisioning & Rootfs Expansion
+After=local-fs.target
+Before=network.target ssh.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/kali-firstboot.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target

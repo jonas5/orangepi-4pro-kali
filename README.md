@@ -1,115 +1,147 @@
-# Orange Pi 4 Pro (Allwinner A733) — Mainline Linux 6.18 Baseline
+# Orange Pi 4 Pro (Allwinner A733) — Kali Linux Rolling (Linux 6.18.y)
 
-This repository provides the working mainline Linux **6.18.y** kernel baseline, device trees, patches, and automated GitHub Actions workflows for the **Orange Pi 4 Pro (Allwinner A733 / `sun60iw2`)**.
+[![Build & Release Kali Linux Image](https://github.com/jonas5/orangepi-4pro-kali/actions/workflows/build-kali-image.yml/badge.svg)](https://github.com/jonas5/orangepi-4pro-kali/actions/workflows/build-kali-image.yml)
+[![Kernel Branch](https://img.shields.io/badge/Kernel-Linux%206.18.y%20ARM64-blue.svg)](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git)
+[![Kali Release](https://img.shields.io/badge/Distribution-Kali%20Linux%20Rolling-red.svg)](https://www.kali.org/)
+[![Packet Injection](https://img.shields.io/badge/Packet%20Injection-Patched%20mac80211-brightgreen.svg)]()
+
+This repository provides the official Kali Linux Rolling ARM64 operating system image, kernel baseline, device trees, packet injection patches, and automated GitHub Actions CI build pipelines for the **Orange Pi 4 Pro (Allwinner A733 / `sun60iw2`)**.
 
 ---
 
-## 1. Hardware & System Status
+## 1. Hardware & Pentesting Feature Matrix
 
-| Component | Hardware Specification | Linux 6.18 Status | Driver Architecture |
+| Feature | Hardware Specification | Kali Linux Status | Driver & Pentesting Architecture |
 | :--- | :--- | :--- | :--- |
-| **CPU / SoC** | Allwinner A733 (6× Cortex-A55, 2× Cortex-A76) | **Working** | Mainline DT, CCU clocks, PCK-600 power domain controller |
-| **Ethernet** | Motorcomm YT8531 Gigabit PHY | **Working** | `stmmac.ko` + `motorcomm.ko` (EEE & auto-sleep disabled, 0% packet loss) |
+| **CPU / Architecture** | Allwinner A733 (6× Cortex-A55, 2× Cortex-A76) | **Working** | Mainline ARM64 DT, CCU clock tree, PCK-600 power controller |
+| **Ethernet** | Motorcomm YT8531 1Gbps PHY | **Working** | `stmmac.ko` + `motorcomm.ko` (EEE & auto-sleep disabled, 0% packet loss) |
 | **MicroSD** | SDC0 (`mmc@4020000`) | **Working** | Locked as `/dev/mmcblk0p1` via DT `aliases { mmc0 = &mmc0; }` |
-| **HDMI Display** | Allwinner Display Engine (`sunxi-drm`) | **Working** | Kernel CMA set to `256 MiB` (`cma=256M`), `/dev/dri/card0` |
-| **GPU / Vulkan** | PowerVR Rogue BXM-4-64 (`36.56.104.183`) | **Working** | `powervr.ko` on `/dev/dri/renderD128` + Mesa open-source Vulkan driver |
-| **Wi-Fi** | AIC8800D80 SDIO 4-bit (`mmc@4021000`) | **Working** | Separate module on demand (`wlan0`, 802.11ax Wi-Fi 6) |
-| **Bluetooth** | AIC8800D80 UART1 (`serial@2501000`) | **Working** | Native H4 1.5MBaud hardware flow control daemon (`hci0`) |
-| **Power Mgmt** | Desktop / GDM3 / Systemd | **Working** | Sleep & suspend targets permanently masked for 24/7 SBC server operation |
-
-> **Hardware Acceleration Driver Licenses:**  
-> The core Linux kernel and base Debian 12 Bookworm SD card images are 100% open source. Hardware acceleration modules (PowerVR Rogue GPU Vulkan 1.2 stack and AIC8800 Wi-Fi 6 / Bluetooth 5.4 FullMAC drivers) are maintained out-of-tree. Driver licenses can be grabbed below:  
->  
-> <a href="https://buymeacoffee.com/jonas5/e/588598" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46" style="height: 46px !important;"></a>
+| **Wireless (On-Board)** | AIC8800D80 SDIO 4-bit (`wlan0`) | **Working** | 802.11ax Wi-Fi 6 FullMAC + HE80 AP master mode (`aic8800_fdrv.ko`) |
+| **Bluetooth** | AIC8800D80 UART1 (`hci0`) | **Working** | Native H4 1.5MBaud hardware flow control attach daemon |
+| **GPU / Vulkan** | PowerVR Rogue BXM-4-64 (`36.56.104.183`) | **Working** | DRM `/dev/dri/renderD128` + Mesa open-source Vulkan 1.2 stack |
+| **Wireless Injection** | Linux mac80211 / cfg80211 core | **Enabled** | Custom raw 802.11 frame injection patch, monitor mode channel lock bypass |
+| **USB Pentesting Dongles** | Alfa AWUS036NEH, AWUS036ACH, Panda, TP-Link | **Supported** | `ath9k_htc`, `carl9170`, `rtl8187`, `rt2800usb`, `rtl8xxxu`, `mt7601u` |
+| **SDR (Software Radio)** | RTL-SDR, HackRF, Airspy USB Dongles | **Supported** | `rtl2832`, `rtl2832_sdr`, `dvb_usb_rtl28xxu` modules built-in |
+| **Automotive / CAN** | SocketCAN, Virtual CAN, Serial CAN | **Supported** | `can`, `can_raw`, `can_bcm`, `vcan`, `slcan` kernel modules |
 
 ---
 
-## 2. Design Principles: Modular Base Image
+## 2. Default Credentials & System Access
 
-To enable clean, reproducible builds in GitHub Actions workflows without bundling out-of-tree or vendor drivers into the kernel image:
-
-1. **Clean Kernel Image (`Image`)**:
-   Only the essential components required to boot straight into a Debian Bookworm root shell are built into the kernel (`=y`):
-   - Core CPU architecture, timers, GICv3 interrupt controller
-   - SoC clock tree (`sun60iw2-ccu`), resets, and pinctrl
-   - Power domain controller (`allwinner,sun60i-a733-pck-600`)
-   - SD card controller (`CONFIG_MMC_SUNXI=y`, `CONFIG_MMC_BLOCK=y`)
-   - Root filesystem (`CONFIG_EXT4_FS=y`)
-   - Serial console (`CONFIG_SERIAL_8250=y`)
-
-2. **Peripheral Drivers as Separate Modules (`=m`)**:
-   All peripheral drivers are separate loadable kernel modules (`.ko`):
-   - `CONFIG_STMMAC_ETH=m`, `CONFIG_DWMAC_SUNXI=m`, `CONFIG_MOTORCOMM_PHY=m`
-   - `CONFIG_DRM_POWERVR=m`
-   - `CONFIG_AIC_WLAN_SUPPORT=m`, `CONFIG_AIC8800_SDIO=m`, `CONFIG_AIC8800_BTLPM_SUPPORT=m`
-   - `CONFIG_SND_SOC_SUNXI_*=m`
-
-3. **Out-of-Tree & Proprietary Driver Separation**:
-   - The AIC8800 BSP driver source (`bsp/`) and bring-up daemons are excluded via `.gitignore`.
-   - Advanced hardware bring-up scripts and proprietary components are packaged separately in a private driver pack, intended to be signed and bound to the device's hardware ID.
+| Account | Username | Password | Privileges |
+| :--- | :--- | :--- | :--- |
+| **Default User** | `kali` | `kali` | Sudoer (`ALL=(ALL:ALL) ALL`), audio, video, plugdev, netdev, dialout |
+| **Root User** | `root` | `toor` | Full root access (or `sudo su -`) |
+| **Serial Console** | `ttyS0` | — | `115200` baud on UART0 header (pins 8 & 10) |
+| **Hostname** | `kali-orangepi4pro` | — | Auto-resolved to `127.0.1.1` |
+| **Rootfs Expansion**| — | — | Automatically expands partition to 100% disk size on first boot |
 
 ---
 
-## 3. Repository Structure
+## 3. Wireless Monitor Mode & Packet Injection
+
+The kernel includes the **Kali Linux mac80211 & cfg80211 raw packet injection patch** (`patch/0002-kali-mac80211-injection.patch`).
+
+### Verifying Packet Injection (External USB Adapter):
+```bash
+# 1. Put wireless interface into monitor mode
+sudo ip link set wlan1 down
+sudo iw dev wlan1 set type monitor
+sudo ip link set wlan1 up
+
+# 2. Test packet injection with aireplay-ng
+sudo aireplay-ng --test wlan1
+```
+
+### Supported Pentesting USB Wi-Fi Adapters Out-of-the-Box:
+- **Atheros AR9271** (Alfa AWUS036NHA, TP-Link TL-WN722N v1): `ath9k_htc.ko`
+- **Atheros AR9170** (carl9170): `carl9170.ko`
+- **Realtek RTL8187L** (Alfa AWUS036H): `rtl8187.ko`
+- **Ralink / MediaTek RT3070 / RT5370 / MT7601U** (Alfa AWUS036NEH, Panda): `rt2800usb.ko`, `mt7601u.ko`
+- **Realtek RTL8812AU / RTL8814AU / RTL8821AU**: `rtl8xxxu.ko`
+
+---
+
+## 4. Hardware Driver Acceleration (Private Driver Pack)
+
+While the core Linux kernel, Device Trees, and Kali Linux base OS are 100% open source, proprietary hardware acceleration drivers (PowerVR Rogue GPU Vulkan 1.2 stack and AIC8800 Wi-Fi 6 AP mode) are maintained out-of-tree.
+
+To activate proprietary GPU acceleration and Wi-Fi 6 Master (AP Mode) drivers on your Orange Pi 4 Pro:
+
+```bash
+# 1. Run the client tool
+sudo orangepi-config --activate all --payment-id YOUR-LICENSE-KEY --non-interactive
+
+# 2. Or grab your license key at:
+# https://raccoon.ing/activate
+```
+
+---
+
+## 5. Repository Structure
 
 ```text
 ├── .github/
 │   └── workflows/
-│       ├── build-kernel.yml      # CI workflow: cross-compiles 6.18 kernel, DTBs & modules
-│       └── build-image.yml       # CI workflow: builds bootable Debian Bookworm SD image (.img.xz)
+│       ├── build-kali-image.yml  # Automated GitHub Actions workflow building Kali SD image (.img.xz)
+│       └── cleanup-runs.yml      # CI workflow maintenance helper
 ├── boot/
 │   ├── boot.cmd                  # U-Boot boot script source
 │   ├── boot.scr                  # Compiled U-Boot script
 │   └── orangepiEnv.txt           # Boot arguments (cma=256M, panic=5, rootdev=/dev/mmcblk0p1)
 ├── config/
-│   └── orangepi_4pro_defconfig   # Modular Linux 6.18 kernel configuration
+│   ├── orangepi_4pro_kali_defconfig # Kali pentesting modular Linux 6.18 kernel configuration
+│   └── orangepi_4pro_defconfig      # Base mainline kernel configuration
 ├── dts/
 │   ├── sun60i-a733-orangepi-4-pro.dts  # Board device tree
 │   ├── sun60iw2p1.dtsi                 # SoC device tree
 │   ├── sun60iw2p1-cpu-vf.dtsi          # CPU voltage-frequency table
 │   └── include/dt-bindings/            # Device tree binding headers
+├── overlay/                      # Kali Linux rootfs overlays
+│   ├── etc/apt/sources.list.d/kali.list # Kali Rolling APT repository
+│   ├── etc/motd                  # Kali Linux dragon ASCII banner
+│   ├── etc/systemd/system/       # First-boot expansion & user provisioning services
+│   └── usr/local/bin/            # First-boot script & orangepi-config helper
 ├── patch/
-│   └── 0001-allwinner-a733-orangepi-4-pro-6.18-mainline.patch # Self-contained mainline 6.18 patch
+│   ├── 0001-allwinner-a733-orangepi-4-pro-6.18-mainline.patch # Mainline 6.18 SoC patch
+│   ├── 0002-kali-mac80211-injection.patch                     # Kali mac80211 injection patch
+│   ├── 0300-packaging-armbian-builddeb.patch                  # Packaging fix
+│   └── orangepi-build.patch                                   # Harness patch
+├── scripts/
+│   ├── build-kali-image.sh       # Standalone local Kali Linux SD image builder
+│   └── compile-kali-kernel.sh    # Standalone kernel & DTB cross-compiler
 └── README.md
 ```
 
 ---
 
-## 4. Building with GitHub Actions
+## 6. Building with GitHub Actions CI
 
-### Workflow 1: Build Debian Bookworm SD Image (`build-image.yml`)
-- Go to the **Actions** tab in GitHub.
-- Select **Build Orange Pi 4 Pro Debian Bookworm Image**.
-- Click **Run workflow** (select `bookworm` and `minimal` or `desktop`).
-- Downloads the resulting `orangepi4pro-bookworm-image.img.xz` artifact once complete.
-
-### Workflow 2: Cross-compile Kernel & Modules (`build-kernel.yml`)
-- Trigger **Build Mainline 6.18 Kernel for Orange Pi 4 Pro**.
-- Builds `Image`, `uImage`, DTBs, and `modules_6.18.y.tar.gz`.
+1. Fork or open this repository on GitHub.
+2. Go to the **Actions** tab.
+3. Select **Build & Release Kali Linux Image**.
+4. Click **Run workflow** (choose `core`, `top10`, or `default` metapackage profile).
+5. Download the resulting `kali-linux-orangepi4pro-6.18-arm64.img.xz` artifact or grab it from the Releases tab.
 
 ---
 
-## 5. Local Build Instructions
+## 7. Flashing & Booting the Image
 
-### Cross-compiling the Kernel Manually:
-```bash
-# 1. Clone mainline kernel 6.18.y
-git clone --depth 1 --branch linux-6.18.y https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git linux-6.18.y
-cd linux-6.18.y
-
-# 2. Apply the unified patch
-git apply ../patch/0001-allwinner-a733-orangepi-4-pro-6.18-mainline.patch
-
-# 3. Configure
-cp ../config/orangepi_4pro_defconfig .config
-make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
-
-# 4. Compile Image, DTBs, and Modules
-make -j$(nproc) ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- Image dtbs modules
-```
+1. Decompress or directly flash the image using:
+   - [BalenaEtcher](https://etcher.balena.io/) (Windows, macOS, Linux)
+   - [Raspberry Pi Imager](https://www.raspberrypi.com/software/)
+   - Or terminal `dd`:
+     ```bash
+     xzcat kali-linux-orangepi4pro-6.18-arm64.img.xz | sudo dd of=/dev/sdX bs=4M status=progress conv=fsync
+     ```
+2. Insert the MicroSD card into your Orange Pi 4 Pro.
+3. Attach HDMI or connect serial debug console (`ttyS0` @ 115200 baud).
+4. Power on with a 5V/4A or 12V Type-C power adapter.
+5. Log in with `kali` / `kali`.
 
 ---
 
-## 6. License
-Kernel patches and device trees are dual-licensed under GPL-2.0 and MIT.
-EOF
+## 8. License
+
+Kernel patches, device trees, and build scripts are dual-licensed under GPL-2.0 and MIT.
+Kali Linux is a registered trademark of OffSec Services Limited.

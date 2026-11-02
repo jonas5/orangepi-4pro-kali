@@ -1,0 +1,107 @@
+name: Build & Release Kali Linux Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      kali_metapackage:
+        description: 'Kali Metapackage Profile'
+        required: true
+        default: 'core'
+        type: choice
+        options:
+          - core
+          - top10
+          - default
+      tag_name:
+        description: 'Custom release tag (leave empty for automated date tag)'
+        required: false
+        default: ''
+      publish_release:
+        description: 'Publish or update GitHub release'
+        required: true
+        default: true
+        type: boolean
+  schedule:
+    - cron: '0 2 * * 0'
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  build-kali-image:
+    name: Build Orange Pi 4 Pro Kali Linux SD Image
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Free disk space on runner
+        run: |
+          sudo rm -rf /usr/share/dotnet
+          sudo rm -rf /usr/local/lib/android
+          sudo rm -rf /opt/ghc
+          sudo rm -rf /opt/hostedtoolcache/CodeQL
+          sudo docker image prune --all --force 2>/dev/null || true
+          df -h
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends             git make gcc g++ gcc-aarch64-linux-gnu binutils-aarch64-linux-gnu             bison flex bc libssl-dev libncurses-dev libelf-dev             debootstrap qemu-user-static binfmt-support u-boot-tools rsync cpio             kmod parted dosfstools fdisk xz-utils curl wget zstd pigz python3             device-tree-compiler lzop libyaml-dev pkg-config
+
+      - name: Clone build harness
+        run: |
+          git clone --depth 1 https://github.com/orangepi-xunlong/orangepi-build.git orangepi-build
+
+      - name: Apply Orange Pi 4 Pro A733 patches and Kali Linux injection
+        run: |
+          git -C orangepi-build apply ../patch/orangepi-build.patch
+
+          mkdir -p orangepi-build/external/patch/kernel/sun60iw2-next
+          cp patch/0001-allwinner-a733-orangepi-4-pro-6.18-mainline.patch orangepi-build/external/patch/kernel/sun60iw2-next/
+          cp patch/0002-kali-mac80211-injection.patch orangepi-build/external/patch/kernel/sun60iw2-next/
+          cp patch/0300-packaging-armbian-builddeb.patch orangepi-build/external/patch/kernel/sun60iw2-next/
+
+          mkdir -p orangepi-build/external/config/kernel
+          cp config/orangepi_4pro_kali_defconfig orangepi-build/external/config/kernel/linux-sun60iw2-next-a733.config
+
+          mkdir -p orangepi-build/external/packages/bsp/common
+          cp -rv overlay/* orangepi-build/external/packages/bsp/common/
+
+      - name: Build SD Image
+        run: |
+          cd orangepi-build
+          sudo ./build.sh             BOARD=orangepi4pro             BRANCH=next             BUILD_OPT=image             RELEASE=trixie             BUILD_MINIMAL=yes             BUILD_DESKTOP=no
+
+      - name: Inject Kali Rolling Repositories & Pentesting Tools
+        run: |
+          mkdir -p release_artifacts
+          RAW_IMG=
+          if [ -n "" ] && [ -f "" ]; then
+            KALI_NAME="kali-linux-orangepi4pro-6.18-arm64.img"
+            mv "" "orangepi-build/output/"
+            echo "Compressing  with xz..."
+            xz -T0 -9 -c "orangepi-build/output/" > "release_artifacts/.xz"
+            (cd release_artifacts && sha256sum ".xz" > ".xz.sha256")
+          fi
+
+          if [ -d "orangepi-build/output/debs" ]; then
+            find orangepi-build/output/debs/ -type f -name "*.deb" -exec cp -v {} release_artifacts/ \;
+          fi
+
+          (cd release_artifacts && sha256sum * > SHA256SUMS 2>/dev/null || true)
+          ls -lh release_artifacts/
+
+      - name: Upload Kali Image Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: kali-linux-orangepi4pro-image
+          path: release_artifacts/*
+          if-no-files-found: error
