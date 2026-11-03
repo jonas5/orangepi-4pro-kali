@@ -1,4 +1,4 @@
-# Orange Pi 4 Pro (Allwinner A733) — Kali Linux Rolling (Linux 6.18.y)
+# Allwinner A733 Linux Support — Kali Linux Rolling (Linux 6.18.y)
 
 [![Build & Release Kali Linux Image](https://github.com/jonas5/orangepi-4pro-kali/actions/workflows/build-kali-image.yml/badge.svg)](https://github.com/jonas5/orangepi-4pro-kali/actions/workflows/build-kali-image.yml)
 [![Kernel Branch](https://img.shields.io/badge/Kernel-Linux%206.18.y%20ARM64-blue.svg)](https://git.kernel.org/pub/scm/linux/kernel/git/stable/linux.git)
