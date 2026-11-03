@@ -24,10 +24,10 @@ This repository provides the official Kali Linux Rolling ARM64 operating system 
 | **SDR (Software Radio)** | RTL-SDR, HackRF, Airspy USB Dongles | **Supported** | `rtl2832`, `rtl2832_sdr`, `dvb_usb_rtl28xxu` modules built-in |
 | **Automotive / CAN** | SocketCAN, Virtual CAN, Serial CAN | **Supported** | `can`, `can_raw`, `can_bcm`, `vcan`, `slcan` kernel modules |
 
-> **Hardware Acceleration & Wi-Fi 6 AP Pentest Driver Licenses:**  
-> The core Linux kernel and base Kali Linux Rolling SD card images are 100% open source. The proprietary AIC8800 Wi-Fi 6 Master (AP / Rogue AP) driver pack and PowerVR Rogue GPU Vulkan 1.2 acceleration stack are maintained out-of-tree. Driver licenses can be grabbed below:  
+> **Hardware Acceleration & Wi-Fi 6 AP Driver Packages (Free):**  
+> To keep the public kernel tree clean and GPLv2 compliant, out-of-tree binary modules (AIC8800 Wi-Fi 6 Master/AP mode and PowerVR Rogue GPU Vulkan 1.2) are hosted separately as free binary packages on [**drivers.raccoon.ing**](https://drivers.raccoon.ing).  
 >  
-> <a href="https://buymeacoffee.com/jonas5/e/594230" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46" style="height: 46px !important;"></a>
+> <a href="https://buymeacoffee.com/jonas5" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46" style="height: 46px !important;"></a>
 
 ---
 
@@ -73,7 +73,7 @@ While the core Linux kernel, Device Trees, and Kali Linux base OS are 100% open 
 
 To activate the AIC8800 Wi-Fi 6 AP and Rogue Pentesting driver pack on your Orange Pi 4 Pro:
 
-<a href="https://buymeacoffee.com/jonas5/e/594230" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46" style="height: 46px !important;"></a>
+<a href="https://buymeacoffee.com/jonas5" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" height="46" style="height: 46px !important;"></a>
 
 ```bash
 # 1. Run the client tool with your license key
@@ -112,7 +112,7 @@ sudo /usr/local/bin/kali-wifi6-ap-setup.sh "Kali_WiFi6_AP" "KaliLinux2026" 5g 36
 │   ├── etc/apt/sources.list.d/kali.list # Kali Rolling APT repository
 │   ├── etc/motd                  # Kali Linux dragon ASCII banner
 │   ├── etc/systemd/system/       # First-boot expansion & user provisioning services
-│   └── usr/local/bin/            # First-boot script & orangepi-config helper
+│   └── usr/local/bin/            # First-boot script & a733-config / orangepi-config helper
 ├── patch/
 │   ├── 0001-allwinner-a733-orangepi-4-pro-6.18-mainline.patch # Mainline 6.18 SoC patch
 │   ├── 0002-kali-mac80211-injection.patch                     # Kali mac80211 injection patch
