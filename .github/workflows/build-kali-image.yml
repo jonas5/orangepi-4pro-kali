@@ -118,26 +118,47 @@ jobs:
           cd orangepi-build
           sudo ./build.sh             BOARD=orangepi4pro             BRANCH=next             BUILD_OPT=image             RELEASE=trixie             BUILD_MINIMAL=yes             BUILD_DESKTOP=no
 
-      - name: Inject Kali Rolling Repositories & Pentesting Tools
+
+
+      - name: Collect and Compress Kali Image
         if: steps.check-kernel.outputs.should_skip != 'true'
+        shell: bash
         run: |
+          set -euo pipefail
+
           mkdir -p release_artifacts
-          RAW_IMG=
-          if [ -n "" ] && [ -f "" ]; then
-            KALI_NAME="kali-linux-orangepi4pro-6.18-arm64.img"
-            mv "" "orangepi-build/output/"
-            echo "Compressing  with xz..."
-            xz -T0 -9 -c "orangepi-build/output/" > "release_artifacts/.xz"
-            (cd release_artifacts && sha256sum ".xz" > ".xz.sha256")
+
+          echo "Searching for generated disk image..."
+
+          find orangepi-build/output/images \
+            -type f \( -name "*.img" -o -name "*.img.xz" \) \
+            -print
+
+          RAW_IMG=$(find orangepi-build/output/images \
+            -type f -name "*.img" -print -quit)
+
+          if [ -z "$RAW_IMG" ]; then
+            echo "::error::No disk image found!"
+            find orangepi-build/output -maxdepth 4 -type f | sort
+            exit 1
           fi
 
-          if [ -d "orangepi-build/output/debs" ]; then
-            find orangepi-build/output/debs/ -type f -name "*.deb" -exec cp -v {} release_artifacts/ \;
-          fi
+          echo "Found image: $RAW_IMG"
 
-          (cd release_artifacts && sha256sum * > SHA256SUMS 2>/dev/null || true)
+          OUT="release_artifacts/kali-linux-orangepi4pro-6.18-arm64.img.xz"
+
+          xz -T0 -6 -c "$RAW_IMG" > "$OUT"
+
+          xz -t "$OUT"
+
+          sha256sum "$OUT" > "$OUT.sha256"
+
+          echo "Image successfully packaged:"
           ls -lh release_artifacts/
 
+
+
+      
       - name: Upload Kali Image Artifact
         if: steps.check-kernel.outputs.should_skip != 'true'
         uses: actions/upload-artifact@v4
